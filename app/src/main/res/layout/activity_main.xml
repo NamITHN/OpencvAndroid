@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginLeft="16dp"
+    android:layout_marginRight="16dp"
+    android:gravity="center"
+    android:orientation="vertical"
+    tools:context="omi.namnt.demoopencvandroid.MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_open"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/open" />
+
+        <Button
+            android:id="@+id/btn_takeaphoto"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/takeaphoto" />
+
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/save" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <ImageView
+            android:id="@+id/img_tempOut"
+            android:layout_width="300dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:layout_weight="1"
+            android:src="@drawable/android" />
+
+        <ImageView
+            android:id="@+id/img_temp"
+            android:layout_width="300dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:layout_marginLeft="10dp"
+            android:layout_weight="1"
+            android:src="@drawable/android" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:src="@mipmap/ic_launcher_round"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:id="@+id/img_blur"
+            android:text="@string/blur" />
+
+        <ImageView
+            android:src="@mipmap/ic_launcher_round"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:id="@+id/img_gaussian"
+            android:text="@string/gaublur" />
+
+        <ImageView
+            android:src="@mipmap/ic_launcher_round"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:id="@+id/img_median"
+            android:text="@string/medianblur" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:src="@mipmap/ic_launcher_round"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:id="@+id/img_thresshold"
+            android:text="@string/thresshold" />
+
+        <ImageView
+            android:id="@+id/img_out"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@mipmap/ic_launcher_round" />
+
+
+    </LinearLayout>
+
+
+</LinearLayout>
