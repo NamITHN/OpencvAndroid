@@ -3,10 +3,11 @@
     <string name="close">Close</string>
     <string name="test">Test</string>
     <string name="open">Open</string>
-    <string name="takeaphoto">TakeAPhoto</string>
+    <string name="takeaphoto">Camera</string>
     <string name="save">SAVE</string>
     <string name="blur">BLUR</string>
     <string name="gaublur">GAU_BLUR</string>
     <string name="medianblur">MEDIAN_BLUR</string>
     <string name="thresshold">THRESSHOLD</string>
+    <string name="reset">RESET</string>
 </resources>
