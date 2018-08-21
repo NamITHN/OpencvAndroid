@@ -10,4 +10,5 @@
     <string name="medianblur">MEDIAN_BLUR</string>
     <string name="thresshold">THRESSHOLD</string>
     <string name="reset">RESET</string>
+    <string name="gray">GRAY</string>
 </resources>
