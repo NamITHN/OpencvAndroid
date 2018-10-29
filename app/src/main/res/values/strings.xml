@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">DemoOpencvAndroid</string>
+    <string name="app_name">ImageProcessing</string>
     <string name="close">Close</string>
     <string name="test">Test</string>
     <string name="open">Open</string>

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -11,6 +12,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.view.MotionEvent;
@@ -26,6 +28,7 @@ import com.karumi.dexter.MultiplePermissionsReport;
 import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
+import com.yarolegovich.lovelydialog.LovelyTextInputDialog;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -33,9 +36,11 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, OnTouchListener {
@@ -43,9 +48,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static int SELECT_GALLERY_IMAGE = 1;
     static final int REQUEST_IMAGE_CAPTURE = 2;
     private ImageView imgTemp, imgInput;
-    private ImageView imgOut, imgBinary, imgGaussian, imgMedian, imgGray;
+    private ImageView imgOut, imgBinary, imgGaussian, imgMedian, imgGray,imgFlip,imgMedianblur,imgThressHold,imgText;
     ScaleGestureDetector scaleGestureDetector;
-    int flipCode = 0;
+    int flipCode = 1;
+    int orientation=0;
+    double x,y;
+    int size=3;
+    boolean isText=false;
+    ArrayList<Point> points=new ArrayList<>();
     Bitmap srcImgRotate, srcImg;
     CoordinatorLayout coordinatorLayout;
 
@@ -66,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button btnReset = this.findViewById(R.id.btn_reset);
 
         ImageView imgRotation = this.findViewById(R.id.img_rotation);
+        imgMedianblur=this.findViewById(R.id.img_medianblur);
         imgTemp = this.findViewById(R.id.img_tempOut);
         imgInput = this.findViewById(R.id.img_temp);
         imgOut = this.findViewById(R.id.img_out);
@@ -74,7 +85,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         coordinatorLayout = this.findViewById(R.id.coordinator);
         imgGray = this.findViewById(R.id.img_gray);
         imgBinary = this.findViewById(R.id.img_binary);
-        imgTemp.setOnTouchListener(this);
+        imgFlip=this.findViewById(R.id.img_flip);
+        imgThressHold=this.findViewById(R.id.img_threshold);
+        imgText=this.findViewById(R.id.img_text);
+
+
 
         btnOpen.setOnClickListener(this);
         btnCamera.setOnClickListener(this);
@@ -86,6 +101,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         imgMedian.setOnClickListener(this);
         imgGaussian.setOnClickListener(this);
         imgGray.setOnClickListener(this);
+        imgFlip.setOnClickListener(this);
+        imgMedianblur.setOnClickListener(this);
+        imgThressHold.setOnClickListener(this);
+        imgTemp.setOnTouchListener(this);
+        imgText.setOnClickListener(this);
 
 
         scaleGestureDetector = new ScaleGestureDetector(this, new MyGesture());
@@ -98,43 +118,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void refresh() {
-        thresshold(imgOut, true);
-        median(imgMedian, true);
-        imgGaussian(imgGaussian, true);
-        gray(imgGray, true);
+        edgeDetection1(imgOut, true);
+        edgeDetection2(imgMedian, true);
+        threshold(imgThressHold,true);
+        gaussianBlur(imgGaussian, true);
+        medianBlur(imgMedianblur, true);
+        colorGray(imgGray, true);
         colorBinary(imgBinary, true);
     }
 
-    private void imgGaussian(ImageView imgGaussian, Boolean isRefresh) {
-        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
-        Mat srcMat = new Mat();
-        Utils.bitmapToMat(srcImgCopy, srcMat);
-        Mat desMat = new Mat();
-        Imgproc.GaussianBlur(srcMat, desMat, new Size(45, 45), 50);
-        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(desMat, desImg);
-        if (!isRefresh) {
-            srcImgRotate = Bitmap.createBitmap(desImg);
-        }
-        imgGaussian.setImageBitmap(desImg);
-    }
-
-    private void median(ImageView imgMedian, Boolean isRefresh) {
-
-        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
-        Mat srcMat = new Mat();
-        Utils.bitmapToMat(srcImgCopy, srcMat);
-        Mat desMat = new Mat();
-        Imgproc.Scharr(srcMat, desMat, Imgproc.CV_SCHARR, 0, 1);
-
-        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(desMat, desImg);
-        if (!isRefresh) {
-            srcImgRotate = Bitmap.createBitmap(desImg);
-        }
-
-        imgMedian.setImageBitmap(desImg);
-    }
 
     @Override
     public void onClick(View view) {
@@ -148,30 +140,75 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btn_save:
                 saveImage();
                 break;
-            case R.id.img_rotation:
-                rotation(imgTemp);
-                break;
-            case R.id.img_out:
-                thresshold(imgTemp, false);
-                break;
-            case R.id.img_gaussian:
-                imgGaussian(imgTemp, false);
-                break;
-            case R.id.img_median:
-                median(imgTemp, false);
-                break;
             case R.id.btn_reset:
                 resetImage();
                 break;
-            case R.id.img_gray:
-                gray(imgTemp, false);
-                break;
+            //Chuyển đổi ảnh màu
             case R.id.img_binary:
                 colorBinary(imgTemp, false);
                 break;
+            case R.id.img_gray:
+                colorGray(imgTemp, false);
+                break;
+             // Tách biên
+            case R.id.img_out:
+                edgeDetection1(imgTemp, false);
+                break;
+            case R.id.img_median:
+                edgeDetection2(imgTemp, false);
+                break;
+                //Làm mờ
+            case R.id.img_gaussian:
+                gaussianBlur(imgTemp, false);
+                break;
+
+            case R.id.img_medianblur:
+                medianBlur(imgTemp, false);
+                break;
+                //Nhị phân hóa ảnh
+            case R.id.img_threshold:
+                threshold(imgTemp, false);
+                break;
+                //xoay ảnh
+            case R.id.img_rotation:
+                rotation(imgTemp);
+                break;
+
+                //lật ảnh
+            case R.id.img_flip:
+                flip(imgTemp);
+                break;
+                //chèn text
+            case R.id.img_text:
+                isText=!isText;
+                if(isText){
+                    imgText.setImageDrawable(ContextCompat.getDrawable(this,R.drawable.ic_text_black));
+                }else {
+                    imgText.setImageDrawable(ContextCompat.getDrawable(this,R.drawable.ic_text));
+                }
+
+
+                break;
+
             default:
                 break;
         }
+    }
+
+
+
+    private void putTextDialog(final Point point) {
+         final LovelyTextInputDialog lovelyTextInputDialog=   new LovelyTextInputDialog(this);
+        lovelyTextInputDialog.setTopColorRes(R.color.colorAccent)
+                .setTitle("Mời bạn nhập vào nội dung")
+                .setConfirmButton(android.R.string.ok, new LovelyTextInputDialog.OnTextInputConfirmListener() {
+                    @Override
+                    public void onTextInputConfirmed(String text) {
+                        putText(text,point);
+                        lovelyTextInputDialog.dismiss();
+                    }
+                })
+                .show();
     }
 
     private void colorBinary(ImageView imgTemp, boolean isRefresh) {
@@ -179,7 +216,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Mat srcMat = new Mat();
         Utils.bitmapToMat(srcImgCopy, srcMat);
         Mat desMat = new Mat();
-        //Imgproc.blur(srcMat, desMat, new Size(51, 51), new Point(20, 20));
         Imgproc.cvtColor(srcMat, desMat, Imgproc.COLOR_BGR2GRAY);
         Imgproc.threshold(srcMat, desMat, 100, 255, Imgproc.THRESH_BINARY);
         Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
@@ -191,12 +227,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    private void gray(ImageView imgTemp, boolean isRefresh) {
+    private void colorGray(ImageView imgTemp, boolean isRefresh) {
         Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
         Mat srcMat = new Mat();
         Utils.bitmapToMat(srcImgCopy, srcMat);
         Mat desMat = new Mat();
-        //  Imgproc.blur(srcMat, desMat, new Size(51, 51), new Point(20, 20));
         Imgproc.cvtColor(srcMat, desMat, Imgproc.COLOR_RGB2GRAY);
         Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
         Utils.matToBitmap(desMat, desImg);
@@ -205,13 +240,78 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         imgTemp.setImageBitmap(desImg);
     }
+    private void edgeDetection1(ImageView imgOut, boolean isRefresh) {
+        Bitmap image = Bitmap.createBitmap(srcImg);
+        Mat inputMat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8U/*.CV_8UC1*/);
+        Utils.bitmapToMat(image, inputMat);
+        Imgproc.cvtColor(inputMat, inputMat, Imgproc.COLOR_RGB2GRAY);
+        Mat outputMat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8U);
+        Imgproc.Canny(inputMat, outputMat, 60, 60*3);
+        Bitmap output = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.RGB_565);
+        Utils.matToBitmap(outputMat, output);
+        if (!isRefresh) {
+            srcImgRotate = Bitmap.createBitmap(output);
+        }
+        imgOut.setImageBitmap(output);
+    }
+    private void edgeDetection2(ImageView imgMedian, Boolean isRefresh) {
 
-    private void resetImage() {
-        srcImgRotate = Bitmap.createBitmap(srcImg);
-        imgTemp.setImageBitmap(srcImg);
+        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
+        Mat srcMat = new Mat();
+        Utils.bitmapToMat(srcImgCopy, srcMat);
+        Mat desMat = new Mat();
+        Imgproc.Scharr(srcMat, desMat, Imgproc.CV_SCHARR, 0, 1);
+        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
+        Utils.matToBitmap(desMat, desImg);
+        if (!isRefresh) {
+            srcImgRotate = Bitmap.createBitmap(desImg);
+        }
+
+        imgMedian.setImageBitmap(desImg);
+    }
+    private void threshold(ImageView imgThressHold, boolean isRefresh) {
+        Bitmap image = Bitmap.createBitmap(srcImg);
+        Mat inputMat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8U/*.CV_8UC1*/);
+        Utils.bitmapToMat(image, inputMat);
+        Imgproc.cvtColor(inputMat, inputMat, Imgproc.COLOR_RGB2GRAY);
+        Mat outputMat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8U);
+        Imgproc.adaptiveThreshold(inputMat, outputMat, 125, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 17, 2);
+        Bitmap output = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.RGB_565);
+        Utils.matToBitmap(outputMat, output);
+        if (!isRefresh) {
+            srcImgRotate = Bitmap.createBitmap(output);
+        }
+        imgThressHold.setImageBitmap(output);
     }
 
-    private void rotation(ImageView imgTemp) {
+    private void gaussianBlur(ImageView imgGaussian, Boolean isRefresh) {
+        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
+        Mat srcMat = new Mat();
+        Utils.bitmapToMat(srcImgCopy, srcMat);
+        Mat desMat = new Mat();
+        Imgproc.GaussianBlur(srcMat, desMat, new Size(45, 45), 50);
+        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
+        Utils.matToBitmap(desMat, desImg);
+        if (!isRefresh) {
+            srcImgRotate = Bitmap.createBitmap(desImg);
+        }
+        imgGaussian.setImageBitmap(desImg);
+    }
+    private void medianBlur(ImageView imgTemp, boolean isRefresh) {
+        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
+        Mat srcMat = new Mat();
+        Utils.bitmapToMat(srcImgCopy, srcMat);
+        Mat desMat = new Mat();
+        Imgproc.medianBlur(srcMat, desMat, 15);
+        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
+        Utils.matToBitmap(desMat, desImg);
+        if (!isRefresh) {
+            srcImgRotate = Bitmap.createBitmap(desImg);
+        }
+        imgTemp.setImageBitmap(desImg);
+    }
+
+    private void flip(ImageView imgTemp) {
         Mat srcMat = new Mat();
         Utils.bitmapToMat(srcImgRotate, srcMat);
         Mat dst = new Mat();
@@ -219,14 +319,58 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (flipCode == -1) {
             flipCode = 0;
         } else if (flipCode == 0) {
-            flipCode = 1;
+            flipCode = -1;
         } else if(flipCode==1) {
-            flipCode = 0;
+            flipCode=0;
+           resetImage();
         }
+
         Bitmap desImg = Bitmap.createBitmap(srcImgRotate.getWidth(), srcImgRotate.getHeight(), Bitmap.Config.RGB_565);
         Utils.matToBitmap(dst, desImg);
         imgTemp.setImageBitmap(desImg);
     }
+
+    private void rotation(ImageView imgTemp) {
+        Matrix matrix=new Matrix();
+        switch (orientation){
+            case 0:
+                orientation=90;
+                matrix.setRotate(orientation);
+                break;
+            case 90:
+                orientation=180;
+                matrix.setRotate(orientation);
+                break;
+            case 180:
+                orientation=270;
+                matrix.setRotate(orientation);
+                break;
+            case 270:
+                orientation=360;
+                matrix.setRotate(orientation);
+                break;
+            case 360:
+                orientation=0;
+                matrix.setRotate(orientation);
+                break;
+        }
+        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
+        Bitmap rotateBitmap=Bitmap.createBitmap(srcImgCopy,0,0,srcImgCopy.getWidth(),srcImgCopy.getHeight(),matrix,true);
+        imgTemp.setImageBitmap(rotateBitmap);
+    }
+
+    private void putText(String mesage,Point point){
+
+        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
+        Mat srcMat = new Mat();
+        Utils.bitmapToMat(srcImgCopy, srcMat);
+        Imgproc.putText (srcMat,mesage, point, Core.FONT_HERSHEY_SIMPLEX , 1, new Scalar(0, 0, 0), 4);
+        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
+        Utils.matToBitmap(srcMat, desImg);
+        imgTemp.setImageBitmap(desImg);
+
+    }
+
 
     private void saveImage() {
 
@@ -289,36 +433,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    private void thresshold(ImageView imgOut, boolean isRefresh) {
-        Bitmap image = Bitmap.createBitmap(srcImg);
-        Mat inputMat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8U/*.CV_8UC1*/);
-        Utils.bitmapToMat(image, inputMat);
-        Imgproc.cvtColor(inputMat, inputMat, Imgproc.COLOR_RGB2GRAY);
-        Mat outputMat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8U);
-        Imgproc.adaptiveThreshold(inputMat, outputMat, 125, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 17, 2);
-        Bitmap output = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(outputMat, output);
-        if (!isRefresh) {
-            srcImgRotate = Bitmap.createBitmap(output);
-        }
-        imgOut.setImageBitmap(output);
-    }
-
-
-    private void blur(ImageView imgBlur, boolean isRefresh) {
-        Bitmap srcImgCopy = Bitmap.createBitmap(srcImg);
-        Mat srcMat = new Mat();
-        Utils.bitmapToMat(srcImgCopy, srcMat);
-        Mat desMat = new Mat();
-        Imgproc.blur(srcMat, desMat, new Size(51, 51), new Point(20, 20));
-        Bitmap desImg = Bitmap.createBitmap(srcImgCopy.getWidth(), srcImgCopy.getHeight(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(desMat, desImg);
-        if (!isRefresh) {
-            srcImgRotate = Bitmap.createBitmap(desImg);
-        }
-        imgBlur.setImageBitmap(desImg);
-    }
-
     private void openImageFromSource() {
         Dexter.withActivity(this).withPermissions(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 .withListener(new MultiplePermissionsListener() {
@@ -342,7 +456,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
-    public boolean onTouch(View view, MotionEvent motionEvent) {
+    public boolean onTouch(View view, final MotionEvent motionEvent) {
+      //  Toast.makeText(this, ""+(int)motionEvent.getX()+","+(int)motionEvent.getY(), Toast.LENGTH_SHORT).show();
+        x = motionEvent.getX();
+        y = motionEvent.getY();
+        if(isText){
+            points.add(new Point(x,y));
+            if(points.size()>=size){
+                putTextDialog(points.get(0));
+                points =new ArrayList<>();
+            }
+        }
+
         scaleGestureDetector.onTouchEvent(motionEvent);
         return true;
     }
@@ -370,7 +495,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     class MyGesture extends ScaleGestureDetector.SimpleOnScaleGestureListener {
         float mScaleFactor = 1.0F;
-
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             mScaleFactor *= scaleGestureDetector.getScaleFactor();
@@ -387,6 +511,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         intent.setAction(Intent.ACTION_VIEW);
         intent.setDataAndType(Uri.parse(path), "image/*");
         startActivity(intent);
+    }
+    private void resetImage() {
+        srcImgRotate = Bitmap.createBitmap(srcImg);
+        imgTemp.setImageBitmap(srcImg);
     }
 }
 
